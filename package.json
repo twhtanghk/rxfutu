@@ -1,0 +1,30 @@
+{
+  "name": "rxfutu",
+  "version": "0.0.1",
+  "description": "Futu API in RxJS",
+  "main": "index.coffee",
+  "scripts": {
+    "test": "node -r coffeescript/register -r esm test/1-futu.coffee"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/twhtanghk/rxfutu.git"
+  },
+  "author": "twhtanghk@gmail.com",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/twhtanghk/rxfutu/issues"
+  },
+  "homepage": "https://github.com/twhtanghk/rxfutu#readme",
+  "dependencies": {
+    "algotrader": "file:../algotrader",
+    "bluebird": "^3.7.2",
+    "coffeescript": "^2.7.0",
+    "esm": "^3.2.25",
+    "futu-api": "^8.0.4008",
+    "lodash": "^4.17.21",
+    "moment": "^2.30.1",
+    "rxjs": "^7.8.1",
+    "ws": "^8.16.0"
+  }
+}
