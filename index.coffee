@@ -1,4 +1,5 @@
 _ = require 'lodash'
+moment = require 'moment'
 Promise = require 'bluebird'
 {Broker} = require('algotrader/rxData').default
 import ftWebsocket from 'futu-api'
@@ -12,6 +13,34 @@ class Futu extends Broker
   @marketMap:
     'hk': QotMarket.QotMarket_HK_Security
     'us': QotMarket.QotMarket_US_Securityx
+
+  @subTypeMap:
+    'Basic': SubType.SubType_Basic
+    'Broker': SubType.SubType_Broker
+    '1': SubType.SubType_KL_1Min
+    '5': SubType.SubType_KL_5Min
+    '15': SubType.SubType_KL_15Min
+    '30': SubType.SubType_KL_30Min
+    '1h': SubType.SubType_KL_60Min
+    '1d': SubType.SubType_KL_Day
+    '1w': SubType.SubType_KL_Week
+    '1m': SubType.SubType_KL_Month
+    '3m': SubType.SubType_KL_Quarter
+    '1y': SubType.SubType_KL_Year
+
+  @freqMap: Futu.subTypeMap
+
+  @klTypeMap:
+    '1': KLType.KLType_1Min
+    '5': KLType.KLType_5Min
+    '15': KLType.KLType_15Min
+    '30': KLType.KLType_30Min
+    '1h': KLType.KLType_60Min
+    '1d': KLType.KLType_Day
+    '1w': KLType.KLType_Week
+    '1m': KLType.KLType_Month
+    '3m': KLType.KLType_Quarter
+    '1y': KLType.KLType_Year
 
   @constant: {
     Common
@@ -68,7 +97,7 @@ class Futu extends Broker
       .format 'YYYY-MM-DD'
     endTime = (end || moment())
       .format 'YYYY-MM-DD HH:mm:ss' 
-    {klList} = @errHandler await @ws.RequestHistoryKL c2s: {rehabType, klType, security, beginTime, endTime}
+    {klList} = Futu.errHandler await @ws.RequestHistoryKL c2s: {rehabType, klType, security, beginTime, endTime}
     klList.map (i) ->
       {timestamp, openPrice, highPrice, lowPrice, closePrice, volume, turnover, changeRate} = i
       market: market
@@ -83,18 +112,34 @@ class Futu extends Broker
       turnover: turnover
       changeRate: changeRate
     
-    streamKL: ({market, code, freq}) ->
-      return
+  streamKL: ({market, code, freq}) ->
+    market ?= 'hk'
+    market = Futu.marketMap[market]
+    await @ws.Sub
+      c2s:
+        securityList: [{market, code}]
+        subTypeList: [Futu.freqMap[freq]]
+        isSubOrUnSub: true
+        isRegOrUnRegPush: true
+
+  marketState: ({market, code}) ->
+    market ?= 'hk'
+    market = Futu.marketMap[market]
+    data = Futu.errHandler await @ws.GetMarketState
+      c2s:
+        securityList: [{market, code}]
+    @next 
+      type: 'marketState'
+      data: data
 
   basicQuote: ({market, code}) ->
     market ?= 'hk'
     market = Futu.marketMap[market]
-    await @ws.Sub {
+    await @ws.Sub
       c2s:
         securityList: [{market, code}]
         subTypeList: [Futu.constant.SubType.SubType_Basic]
         isSubOrUnSub: true
         isRegOrUnRegPush: true
-    }
 
 export default Futu
