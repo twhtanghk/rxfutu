@@ -1,4 +1,5 @@
 {
+  "type": "module",
   "name": "rxfutu",
   "version": "0.0.1",
   "description": "Futu API in RxJS",
