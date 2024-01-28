@@ -142,6 +142,7 @@ class Futu extends Broker
       volume: volume
       turnover: turnover
     @pipe kl, transform 
+
   orderBook: ({market, code}) ->
     opts = {market, code}
     market ?= 'hk'
