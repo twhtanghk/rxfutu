@@ -18,7 +18,7 @@
   },
   "homepage": "https://github.com/twhtanghk/rxfutu#readme",
   "dependencies": {
-    "algotrader": "file:../algotrader",
+    "algotrader": "github:twhtanghk/algotrader",
     "bluebird": "^3.7.2",
     "coffeescript": "^2.7.0",
     "esm": "^3.2.25",

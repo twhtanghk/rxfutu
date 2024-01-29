@@ -2,13 +2,34 @@ _ = require 'lodash'
 moment = require 'moment'
 Promise = require 'bluebird'
 import {from, filter, map} from 'rxjs'
-{Broker} = require('algotrader/rxData').default
+{Broker} = AlgoTrader = require('algotrader/rxData').default
 import ftWebsocket from 'futu-api'
 import { ftCmdID } from 'futu-api'
 import {Common, Qot_Common, Trd_Common} from 'futu-api/proto'
 {TradeDateMarket, SubType, RehabType, KLType, QotMarket} = Qot_Common
 {RetType} = Common
 {ModifyOrderOp, OrderType, OrderStatus, SecurityFirm, TrdEnv, TrdMarket, TrdSecMarket, TrdSide, TimeInForce} = Trd_Common
+
+class Account extends AlgoTrader.Account
+  constructor: (opts) ->
+    super()
+    {broker, trdEnv, accID, trdMarketAuthList, accType, cardNum, securityFirm} = opts
+    @broker = broker
+    @id = accID
+    @trdEnv = trdEnv
+    @market = trdMarketAuthList
+    @type = accType
+    @cardNum = cardNum
+    @securityFirm = securityFirm
+
+  position: ->
+    req =
+      c2s:
+        header:
+          trdEnv: @trdEnv
+          accID: @id
+          trdMarket: @market[0]
+    (Futu.errHandler await @broker.ws.GetPositionList req).positionList
 
 class Futu extends Broker
   @marketMap:
@@ -62,6 +83,8 @@ class Futu extends Broker
     TrdSide
     TrdSecMarket
   }
+
+  trdEnv: if process.env.TRDENV? then parseInt process.env.TRDENV else TrdEnv.TrdEnv_Simulate
 
   constructor: ({host, port} = {}) ->
     super()
@@ -168,12 +191,25 @@ class Futu extends Broker
 
   unsubKL: ({market, code, freq}) ->
     opts = {market, code, freq}
+    console.log Futu.subTypeMap[freq]
+    console.log opts
     market ?= 'hk'
     market = Futu.marketMap[market]
     await @ws.Sub
       c2s:
         securityList: [{market, code}]
-        subTypeList: [Futu.freqMap[freq]]
+        subTypeList: [Futu.subTypeMap[freq]]
+        isSubOrUnSub: false
+        isRegOrUnRegPush: true
+
+  unsubOrderBook: ({market, code}) ->
+    opts = {market, code}
+    market ?= 'hk'
+    market = Futu.marketMap[market]
+    await @ws.Sub
+      c2s:
+        securityList: [{market, code}]
+        subTypeList: [Futu.constant.SubType.SubType_OrderBook]
         isSubOrUnSub: false
         isRegOrUnRegPush: true
     
@@ -218,5 +254,24 @@ class Futu extends Broker
         securityList: [{market, code}]
     [ret, ...] = (Futu.errHandler await @ws.GetBasicQot req).basicQotList
     ret
+
+  plateSecurity: ({market, code} = {}) ->
+    market ?= 'hk'
+    market = Futu.marketMap[market]
+    code ?= 'HSI Constituent'
+    (Futu.errHandler await @ws.GetPlateSecurity
+      c2s:
+        plate: {market, code}).staticInfoList.map ({basic}) ->
+          basic.security.code
+
+  accounts: ->
+    (Futu.errHandler await @ws.GetAccList c2s: userID: 0)
+      .accList
+      .filter ({trdEnv, trdMarketAuthList}) ->
+        # real account and hk in market list
+        trdEnv == 1 and 1 in trdMarketAuthList
+      .map (acc) =>
+        acc.broker = @
+        new Account acc
 
 export default Futu
