@@ -132,7 +132,7 @@ class Futu extends Broker
       high: highPrice
       low: lowPrice
       close: closePrice
-      volume: volume
+      volume: volume.toNumber()
       turnover: turnover
       changeRate: changeRate
     
@@ -162,7 +162,7 @@ class Futu extends Broker
       high: highPrice
       low: lowPrice
       close: closePrice
-      volume: volume
+      volume: volume.toNumber()
       turnover: turnover
     @pipe kl, transform 
 
