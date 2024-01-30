@@ -219,19 +219,19 @@ class Futu extends Broker
     (Futu.errHandler await @ws.GetMarketState 
       c2s: securityList: [{market, code}]).marketInfoList
 
-  optionChain: ({market, code, strikeRange, start, end}) ->
+  optionChain: ({market, code, strikeRange, beginTime, endTime}) ->
     market ?= 'hk'
-    start ?= moment()
+    beginTime ?= moment()
       .startOf 'month'
-    end ?= moment()
+    endTime ?= moment()
       .endOf 'month'
     {optionChain} = Futu.errHandler await @ws.GetOptionChain
       c2s:
         owner:
           market: Futu.marketMap[market]
           code: code
-        beginTime: start.format 'YYYY-MM-DD'
-        endTime: end.format 'YYYY-MM-DD'
+        beginTime: beginTime.format 'YYYY-MM-DD'
+        endTime: endTime.format 'YYYY-MM-DD'
     _.map optionChain, ({option, strikeTime, strikeTimestamp}) ->
       strikeTime: strikeTime
       option: _.filter option, ({call, put}) ->
