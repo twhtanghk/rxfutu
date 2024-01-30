@@ -177,11 +177,13 @@ class Futu extends Broker
         isSubOrUnSub: true
         isRegOrUnRegPush: true
     orderBook = filter ({type, data}) ->
-      {security} = data
-      {market, code} = security
-      type == 'Qot_UpdateOrderBook' and
-      market == security.market and
-      code == security.code
+      if type == 'Qot_UpdateOrderBook'
+        {security} = data
+        {market, code} = security
+        market == security.market and
+        code == security.code
+      else
+        false
     transform = map ({type, data}) ->
       market: opts.market
       code: code
