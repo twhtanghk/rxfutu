@@ -1,7 +1,7 @@
 _ = require 'lodash'
 moment = require 'moment'
 Promise = require 'bluebird'
-import {from, filter, map} from 'rxjs'
+import {from, filter, map, tap} from 'rxjs'
 {Broker} = AlgoTrader = require('algotrader/rxData').default
 import ftWebsocket from 'futu-api'
 import { ftCmdID } from 'futu-api'
@@ -9,6 +9,23 @@ import {Common, Qot_Common, Trd_Common} from 'futu-api/proto'
 {TradeDateMarket, SubType, RehabType, KLType, QotMarket} = Qot_Common
 {RetType} = Common
 {ModifyOrderOp, OrderType, OrderStatus, SecurityFirm, TrdEnv, TrdMarket, TrdSecMarket, TrdSide, TimeInForce} = Trd_Common
+
+class Order extends AlgoTrader.Order
+  @SIDE:
+    unknown: TrdSide.TrdSide_Unknown
+    buy: TrdSide.TrdSide_Buy
+    buyBack: TrdSide.TrdSide_BuyBack
+    sell: TrdSide.TrdSide_Sell
+    sellShort: TrdSide.TrdSide_SellShort
+
+  @TYPE:
+    limit: OrderType.OrderType_Normal
+    market: OrderType.OrderType_Market
+
+  constructor: (opts) ->
+    super opts
+    @side = (_.invert Order.SIDE)[@side] || @side
+    @type = (_.invert Order.TYPE)[@type] || @type
 
 class Account extends AlgoTrader.Account
   constructor: (opts) ->
@@ -21,6 +38,45 @@ class Account extends AlgoTrader.Account
     @type = accType
     @cardNum = cardNum
     @securityFirm = securityFirm
+
+  historyOrder: ({beginTime, endTime}) ->
+    beginTime ?= moment().subtract week: 1
+    endTime ?= moment()
+    req =
+      c2s:
+        header:
+          trdEnv: @trdEnv
+          accID: @id
+          trdMarket: @market
+        filterConditions:
+          beginTime: beginTime.format 'YYYY-MM-DD hh:mm:ss'
+          endTime: endTime.format 'YYYY-MM-DD hh:mm:ss'
+    {orderList} = Futu.errHandler await @broker.ws.GetHistoryOrderList req
+    from orderList.map (i) =>
+      {code, name, trdSide, orderType, orderStatus, orderID, orderStatus, price, qty, updateTimestamp, createTimestamp} = i
+      new Order
+        account: @
+        id: orderID
+        code: code
+        name: name
+        side: trdSide
+        type: orderType
+        status: orderStatus
+        price: price
+        qty: qty
+        updateTime: updateTimestamp
+        createTime: createTimestamp
+
+  streamOrder: ->
+    req =
+      c2s:
+        accIDList: [@id]
+    await @broker.ws.SubAccPush req
+    @broker
+      .pipe filter ({type, data}) ->
+        type == 'TrdUpdateOrderFill'
+      .pipe map (x) ->
+        new Order x.orderFill
 
   position: ->
     req =
