@@ -22,12 +22,55 @@ class Order extends AlgoTrader.Order
     limit: OrderType.OrderType_Normal
     market: OrderType.OrderType_Market
 
+  @STATUS:
+    unsubmitted: OrderStatus.OrderStatus_Unsubmitted
+    unknown: OrderStatus.OrderStatus_Unknown
+    waitingSubmit: OrderStatus.OrderStatus_WaitingSubmit
+    submitting: OrderStatus.OrderStatus_Submitting
+    sumitFailed: OrderStatus.OrderStatus_SubmitFailed
+    timeout: OrderStatus.OrderStatus_TimeOut
+    submitted: OrderStatus.OrderStatus_Submitted
+    filledPart: OrderStatus.OrderStatus_Filled_Part
+    filledAll: OrderStatus.OrderStatus_Filled_All
+    cancellingPart: OrderStatus.OrderStatus_Cancelling_Part
+    cancellingAll: OrderStatus.OrderStatus_Cancelling_All
+    cancelledPart: OrderStatus.OrderStatus_Cancelled_Part
+    cancelledAll: OrderStatus.OrderStatus_Cancelled_All
+    failed: OrderStatus.OrderStatus_Failed
+    disabled: OrderStatus.OrderStatus_Disabled
+    deleted: OrderStatus.OrderStatus_Deleted
+    fillCancelled: OrderStatus.OrderStatus_FillCancelled
+
   constructor: (opts) ->
     super opts
     @side = (_.invert Order.SIDE)[@side] || @side
     @type = (_.invert Order.TYPE)[@type] || @type
+    @status = (_.invert Order.STATUS)[@status] || @status
+    @fillQty = opts.fillQty
+    @fillAvgPrice = opts.fillAvgPrice
 
+  @fromFutu: (i) ->
+    {code, name, trdSide, orderType, orderStatus, orderID, orderStatus, price, qty, fillQty, fillAvgPrice, updateTimestamp, createTimestamp} = i
+    new Order
+      id: orderID.toNumber()
+      code: code
+      name: name
+      side: trdSide
+      type: orderType
+      status: orderStatus
+      price: price
+      qty: qty
+      fillQty: fillQty
+      fillAvgPrice: fillAvgPrice
+      updateTime: updateTimestamp
+      createTime: createTimestamp
+
+  toJSON: ->
+    _.extend super(), {@fillQty, @fillAvgPrice}
+      
 class Account extends AlgoTrader.Account
+  serialNo: 0
+
   constructor: (opts) ->
     super()
     {broker, trdEnv, accID, trdMarketAuthList, accType, cardNum, securityFirm} = opts
@@ -48,24 +91,17 @@ class Account extends AlgoTrader.Account
           trdEnv: @trdEnv
           accID: @id
           trdMarket: @market
-        filterConditions:
-          beginTime: beginTime.format 'YYYY-MM-DD hh:mm:ss'
-          endTime: endTime.format 'YYYY-MM-DD hh:mm:ss'
-    {orderList} = Futu.errHandler await @broker.ws.GetHistoryOrderList req
-    from orderList.map (i) =>
-      {code, name, trdSide, orderType, orderStatus, orderID, orderStatus, price, qty, updateTimestamp, createTimestamp} = i
-      new Order
-        account: @
-        id: orderID
-        code: code
-        name: name
-        side: trdSide
-        type: orderType
-        status: orderStatus
-        price: price
-        qty: qty
-        updateTime: updateTimestamp
-        createTime: createTimestamp
+    openOrder = Futu.errHandler await @broker.ws.GetOrderList req
+    req.c2s.filterConditions =
+      beginTime: beginTime.format 'YYYY-MM-DD hh:mm:ss'
+      endTime: endTime.format 'YYYY-MM-DD hh:mm:ss'
+    history = Futu.errHandler await @broker.ws.GetHistoryOrderList req
+    from (openOrder.orderList
+      .concat history.orderList
+      .map (order) ->
+        topic: 'orderList'
+        data: (Order.fromFutu order).toJSON()
+    )
 
   streamOrder: ->
     req =
@@ -74,10 +110,60 @@ class Account extends AlgoTrader.Account
     await @broker.ws.SubAccPush req
     @broker
       .pipe filter ({type, data}) ->
-        type == 'TrdUpdateOrderFill'
-      .pipe map (x) ->
-        new Order x.orderFill
+        type == 'Trd_UpdateOrder'
+      .pipe map ({type, data}) ->
+        topic: 'orderUpdate'
+        data: (Order.fromFutu data.order).toJSON()
 
+  placeOrder: (order) ->
+    super order
+    req =
+      c2s:
+        packetID:
+          connID: @broker.ws.getConnID()
+          serialNo: @serialNo++
+        header:
+          trdEnv: @trdEnv
+          accID: @id
+          trdMarket: @market
+        trdSide: Order.SIDE[order.side]
+        orderType: Order.TYPE[order.type]
+        code: order.code
+        qty: order.qty
+        price: order.price
+        secMarket: TrdSecMarket.TrdSecMarket_HK
+    Futu.errHandler await @broker.ws.PlaceOrder req
+
+  cancelOrder: (order) ->
+    req =
+      c2s:
+        packetID:
+          connID: @broker.ws.getConnID()
+          serialNo: @serialNo++
+        header:
+          trdEnv: @trdEnv
+          accID: @id
+          trdMarket: @market
+        orderID: order.id
+        modifyOrderOp: ModifyOrderOp.ModifyOrderOp_Cancel
+    Futu.errHandler await @broker.ws.modifyOrder req
+
+  updateOrder: (order) ->
+    req =
+      c2s:
+        packetID:
+          connID: @broker.ws.getConnID()
+          serialNo: @serialNo++
+        header:
+          trdEnv: @trdEnv
+          accID: @id
+          trdMarket: @market
+        orderID: order.id
+        qty: order.qty
+        price: order.price
+        modifyOrderOp: ModifyOrderOp.ModifyOrderOp_Normal
+    Futu.errHandler await @broker.ws.modifyOrder req
+    
   position: ->
     req =
       c2s:
