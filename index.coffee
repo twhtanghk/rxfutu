@@ -82,7 +82,7 @@ class Account extends AlgoTrader.Account
     @cardNum = cardNum
     @securityFirm = securityFirm
 
-  historyOrder: ({beginTime, endTime}) ->
+  historyOrder: ({beginTime, endTime}={}) ->
     beginTime ?= moment().subtract week: 1
     endTime ?= moment()
     req =
