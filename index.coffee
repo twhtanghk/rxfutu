@@ -146,7 +146,7 @@ class Account extends AlgoTrader.Account
           trdMarket: @market
         orderID: order.id
         modifyOrderOp: ModifyOrderOp.ModifyOrderOp_Cancel
-    Futu.errHandler await @broker.ws.modifyOrder req
+    Futu.errHandler await @broker.ws.ModifyOrder req
 
   updateOrder: (order) ->
     req =
@@ -417,5 +417,13 @@ class Futu extends Broker
       .map (acc) =>
         acc.broker = @
         new Account acc
+
+  unlock: ({pwdMD5}) ->
+    req =
+      c2s:
+        unlock: true
+        securityFirm: SecurityFirm.SecurityFirm_FutuSecurities
+        pwdMD5: pwdMD5
+    Futu.errHandler await @ws.UnlockTrade req
 
 export default Futu
