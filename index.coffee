@@ -406,7 +406,8 @@ class Futu extends Broker
     (Futu.errHandler await @ws.GetPlateSecurity
       c2s:
         plate: {market, code}).staticInfoList.map ({basic}) ->
-          basic.security.code
+          code: basic.security.code
+          name: basic.name
 
   accounts: ->
     (Futu.errHandler await @ws.GetAccList c2s: userID: 0)
