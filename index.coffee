@@ -99,8 +99,7 @@ class Account extends AlgoTrader.Account
     from (openOrder.orderList
       .concat history.orderList
       .map (order) ->
-        topic: 'orderList'
-        data: (Order.fromFutu order).toJSON()
+        (Order.fromFutu order).toJSON()
     )
 
   streamOrder: ->
@@ -112,8 +111,7 @@ class Account extends AlgoTrader.Account
       .pipe filter ({type, data}) ->
         type == 'Trd_UpdateOrder'
       .pipe map ({type, data}) ->
-        topic: 'orderUpdate'
-        data: (Order.fromFutu data.order).toJSON()
+        (Order.fromFutu data.order).toJSON()
 
   placeOrder: (order) ->
     super order
@@ -335,8 +333,6 @@ class Futu extends Broker
 
   unsubKL: ({market, code, freq}) ->
     opts = {market, code, freq}
-    console.log Futu.subTypeMap[freq]
-    console.log opts
     market ?= 'hk'
     market = Futu.marketMap[market]
     await @ws.Sub
