@@ -224,6 +224,11 @@ class Futu extends Broker
     TrdSecMarket
   }
 
+  @optCode: (code) ->
+    [input, symbol, date, side, price, ...] = code.match /([A-Z]{3})([0-9]{6})([CP])([0-9]+)/
+    side = {C: 'call', P: 'put'}[side]
+    {symbol, date, side, price}
+
   trdEnv: if process.env.TRDENV? then parseInt process.env.TRDENV else TrdEnv.TrdEnv_Simulate
 
   constructor: ({host, port} = {}) ->
