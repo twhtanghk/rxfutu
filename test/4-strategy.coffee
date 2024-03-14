@@ -3,7 +3,7 @@ moment = require 'moment'
 Futu = require('../index').default
 strategy = require('algotrader/rxStrategy').default
 {skipDup} = require('algotrader/analysis').default.ohlc
-import {EMPTY, switchMap, tap, map, filter} from 'rxjs'
+import {concatMap, tap, map, filter} from 'rxjs'
 
 enable = false
 process.on 'SIGUSR1', ->
@@ -35,17 +35,35 @@ position = ({broker, market, code}) ->
     qty: 0
     canSellQty: 0
 
-decision = ({entry, opt}) ->
-  if entry == 'buy'
-    if opt == 'call'
-      'longCall'
-    else if opt == 'put'
-      'shortPut'
-  else if entry == 'sell'
-    if opt == 'call'
-      'shortCall'
-    else if opt = 'put'
-      'longPut'
+direction = ({entry, opt}) ->
+  entry = {buy: 1, sell: -1}[entry]
+  opt = {call: 1, put: -1}[opt]
+  entry * opt
+
+decision = ({entry, opt, canSellQty}) ->
+  console.log direction {entry, opt}
+  side = {buy: 'long', sell: 'short'}[entry]
+  switch true
+    when canSellQty == 0
+      qty: direction({entry, opt}), opt: "#{side}#{opt}"
+    when canSellQty > 0
+      qty: -1 * direction({entry, opt}) * canSellQty, opt: "long#{opt}"
+    when canSellQty < 0
+      qty: -1 * direction({entry, opt}) * canSellQty, opt: "short#{opt}"
+
+# check position and active order
+portfolio = ({broker, market, optCode}) -> (obs) ->
+  obs
+    .pipe concatMap (i) ->
+      {canSellQty} = await position 
+        broker: broker
+        market: market
+        code: optCode
+      {i, canSellQty}
+    .pipe tap console.log
+    .pipe map ({i, canSellQty}) ->
+      {side} = Futu.optCode optCode
+      _.merge i, entryExit: decision {entry: i.entryExit.side, opt: side, canSellQty: canSellQty}
 
 do ->
   try 
@@ -71,22 +89,7 @@ do ->
       .pipe strategy.volUp()
       .pipe filter (i) ->
         'entryExit' of i
-      # check position and active order
-      .pipe switchMap (i) ->
-        {side} = Futu.optCode optCode
-        {canSellQty} = await position 
-          broker: broker
-          market: market
-          code: optCode
-        switch decision {entry: i.entryExit.side, opt: side}
-          when 'longCall'
-            if canSellQty > 0 then EMPTY else i
-          when 'shortCall'
-            if canSellQty < 0 then EMPTY else i
-          when 'longPut'
-            if canSellQty > 0 then EMPTY else i
-          when 'shortPut'
-            if canSellQty < 0 then EMPTY else i
+      .pipe portfolio {broker, market, optCode}
       .pipe tap console.log
       .pipe filter ->
         enable
