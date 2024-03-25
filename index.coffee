@@ -2,7 +2,7 @@ _ = require 'lodash'
 moment = require 'moment'
 Promise = require 'bluebird'
 import {from, filter, map, tap} from 'rxjs'
-{Broker} = AlgoTrader = require('algotrader/rxData').default
+{freqDuration, Broker} = AlgoTrader = require('algotrader/rxData').default
 import ftWebsocket from 'futu-api'
 import { ftCmdID } from 'futu-api'
 import {Common, Qot_Common, Trd_Common} from 'futu-api/proto'
@@ -262,7 +262,7 @@ class Futu extends Broker
       code: code
     rehabType = RehabType.RehabType_Forward
     klType = Futu.klTypeMap[freq]
-    beginTime = (start || moment().subtract freqDuration[freq])
+    beginTime = (start || moment().subtract freqDuration[freq].dataFetched)
       .format 'YYYY-MM-DD'
     endTime = (end || moment())
       .format 'YYYY-MM-DD HH:mm:ss' 

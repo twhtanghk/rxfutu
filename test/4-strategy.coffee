@@ -45,11 +45,11 @@ decision = ({entry, opt, canSellQty}) ->
   side = {buy: 'long', sell: 'short'}[entry]
   switch true
     when canSellQty == 0
-      qty: direction({entry, opt}), opt: "#{side}#{opt}"
+      qty: direction({entry, opt}), opt: opt
     when canSellQty > 0
-      qty: -1 * direction({entry, opt}) * canSellQty, opt: "long#{opt}"
+      qty: -1 * direction({entry, opt}) * canSellQty, opt: opt
     when canSellQty < 0
-      qty: -1 * direction({entry, opt}) * canSellQty, opt: "short#{opt}"
+      qty: -1 * direction({entry, opt}) * canSellQty, opt: opt
 
 # check position and active order
 portfolio = ({broker, market, optCode}) -> (obs) ->
@@ -75,7 +75,6 @@ do ->
     opts =
       market: market
       code: code
-      start: moment().subtract minute: 60 * parseInt freq
       freq: freq
     (await broker.dataKL opts)
       .pipe filter (i) ->
