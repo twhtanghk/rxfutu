@@ -92,13 +92,16 @@ do ->
         moment()
           .subtract minute: 2 * parseInt freq
           .isBefore moment.unix i.timestamp
+      .pipe tap (x) -> logger.debug JSON.stringify x
+      .pipe filter (i) ->
+        i['close.stdev.stdev'] < 1 or i['close.stdev.stdev'] > 14
       .pipe portfolio {broker, market, optCode}
       .pipe tap (x) -> logger.debug JSON.stringify x
       .subscribe (i) ->
-        price = (await broker.quickQuote({market, code: optCode}))[i.entryExit.side]
+        price = (await broker.quickQuote({market, code: optCode}))[i.entryExit[0].side]
         params =
           code: optCode
-          side: i.entryExit.side
+          side: i.entryExit[0].side
           type: 'limit'
           price: price
         logger.info JSON.stringify params
