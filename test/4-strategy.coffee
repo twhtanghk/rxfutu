@@ -3,19 +3,21 @@ moment = require 'moment'
 Futu = require('../index').default
 strategy = require('algotrader/rxStrategy').default
 {skipDup} = require('algotrader/analysis').default.ohlc
+{createLogger} = winston = require 'winston'
 import {concatMap, tap, map, filter} from 'rxjs'
 
-enable = false
-process.on 'SIGUSR1', ->
-  enable = !enable
-  console.log "enable = #{enable}"
+logger = createLogger
+  level: process.env.LEVEL || 'info'
+  format: winston.format.simple()
+  transports: [ new winston.transports.Console() ]
 
 if process.argv.length != 5
-  console.log 'node -r coffeescript/register -r esm test/strategy code, optCode, meanReversion'
+  logger.error 'node -r coffeescript/register -r esm test/strategy code optCode meanReversion'
   process.exit 1
 
 position = ({broker, market, code}) ->
-  found = (await (await broker.defaultAcc()).position())
+  account = await broker.defaultAcc()
+  found = (await account.position())
   found = found
     .find (i) ->
       code == i.code
@@ -41,7 +43,6 @@ direction = ({entry, opt}) ->
   entry * opt
 
 decision = ({entry, opt, canSellQty}) ->
-  console.log direction {entry, opt}
   side = {buy: 'long', sell: 'short'}[entry]
   switch true
     when canSellQty == 0
@@ -60,7 +61,6 @@ portfolio = ({broker, market, optCode}) -> (obs) ->
         market: market
         code: optCode
       {i, canSellQty}
-    .pipe tap console.log
     .pipe map ({i, canSellQty}) ->
       {side} = Futu.optCode optCode
       _.merge i, entryExit: decision {entry: i.entryExit.side, opt: side, canSellQty: canSellQty}
@@ -84,35 +84,30 @@ do ->
         i.date = new Date i.timestamp * 1000
         i
       .pipe strategy.indicator()
-      .pipe strategy[selectedStrategy]()
-      .pipe strategy.volUp()
+      .pipe strategy.meanReversion()
       .pipe filter (i) ->
         'entryExit' of i
+      .pipe filter (i) ->
+        # filter those history data
+        moment()
+          .subtract minute: 2 * parseInt freq
+          .isBefore moment.unix i.timestamp
       .pipe portfolio {broker, market, optCode}
-      .pipe tap console.log
-      .pipe filter ->
-        enable
+      .pipe tap (x) -> logger.debug JSON.stringify x
       .subscribe (i) ->
-        position = await account.position()
-        {open, close} = i
-        price = (await broker.quickQuote({market, code}))[i.entryExit.side]
+        price = (await broker.quickQuote({market, code: optCode}))[i.entryExit.side]
         params =
-          code: opts.code
+          code: optCode
           side: i.entryExit.side
           type: 'limit'
           price: price
+        logger.info JSON.stringify params
+        ###
         try
-          if i.entryExit.side == 'buy' and position.USDT? and position.USDT > 10
-            params.qty = Math.floor(position.USDT * 1000 / price) / 1000
-            console.log params
-            index = await account.placeOrder params
-            await account.enableOrder index
-          if i.entryExit.side == 'sell' and position.ETH? and position.ETH > 0.01
-            params.qty = Math.floor(position.ETH * 1000) / 1000
-            console.log params
-            index = await account.placeOrder params
-            await account.enableOrder index
+          index = await account.placeOrder params
+          await account.enableOrder index
         catch err
-          console.error err
+          logger.error err
+        ###
   catch err
     console.error err
