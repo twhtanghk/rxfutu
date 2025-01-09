@@ -233,7 +233,7 @@ class Futu extends Broker
 
   constructor: ({host, port} = {}) ->
     super()
-    host ?= 'localhost'
+    host ?= 'futu'
     port ?= 33333
     global.WebSocket = require 'ws'
     return do =>
