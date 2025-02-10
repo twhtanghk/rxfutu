@@ -1,10 +1,11 @@
 _ = require 'lodash'
 moment = require 'moment'
-Futu = require('../index').default
-strategy = require('algotrader/rxStrategy').default
-{skipDup} = require('algotrader/analysis').default.ohlc
+Futu = require '../index'
+strategy = require 'algotrader/rxStrategy'
+{ohlc} = require 'algotrader/analysis'
+{skipDup} = ohlc
 {createLogger} = winston = require 'winston'
-import {concatMap, tap, map, filter} from 'rxjs'
+{concatMap, tap, map, filter} = require 'rxjs'
 
 logger = createLogger
   level: process.env.LEVEL || 'info'

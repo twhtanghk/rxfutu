@@ -1,11 +1,10 @@
 {
-  "type": "module",
   "name": "rxfutu",
   "version": "0.0.1",
   "description": "Futu API in RxJS",
   "main": "index.coffee",
   "scripts": {
-    "test": "node -r coffeescript/register -r esm test/1-futu.coffee"
+    "test": "coffee test/1-futu.coffee"
   },
   "repository": {
     "type": "git",

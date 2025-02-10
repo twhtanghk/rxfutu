@@ -1,6 +1,6 @@
 Promise = require 'bluebird'
 moment = require 'moment'
-Futu = require('../index').default
+Futu = require '../index'
 
 try
   futu = await new Futu()

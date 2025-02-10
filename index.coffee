@@ -1,11 +1,11 @@
 _ = require 'lodash'
 moment = require 'moment'
 Promise = require 'bluebird'
-import {from, filter, map, tap} from 'rxjs'
-{freqDuration, Broker} = AlgoTrader = require('algotrader/rxData').default
-import ftWebsocket from 'futu-api'
-import { ftCmdID } from 'futu-api'
-import {Common, Qot_Common, Trd_Common} from 'futu-api/proto'
+{from, filter, map, tap} = require 'rxjs'
+{freqDuration, Broker} = AlgoTrader = require 'algotrader/rxData'
+ftWebsocket = require('futu-api').default
+{ ftCmdID } = require 'futu-api'
+{Common, Qot_Common, Trd_Common} = require 'futu-api/proto.js'
 {TradeDateMarket, SubType, RehabType, KLType, QotMarket} = Qot_Common
 {RetType} = Common
 {ModifyOrderOp, OrderType, OrderStatus, SecurityFirm, TrdEnv, TrdMarket, TrdSecMarket, TrdSide, TimeInForce} = Trd_Common
@@ -428,4 +428,4 @@ class Futu extends Broker
         pwdMD5: pwdMD5
     Futu.errHandler await @ws.UnlockTrade req
 
-export default Futu
+module.exports = Futu
